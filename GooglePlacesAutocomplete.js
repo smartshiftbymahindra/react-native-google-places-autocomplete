@@ -201,11 +201,7 @@ export default class GooglePlacesAutocomplete extends Component {
           this._disableRowLoaders();
           this.props.onPress(currentLocation, currentLocation);
         } else {
-          try {
-            this._requestNearby(position.coords.latitude, position.coords.longitude);
-          } catch (error) {
-            console.warn('google places autocomplete: ' + error)
-          }
+          this._requestNearby(position.coords.latitude, position.coords.longitude);
         }
       },
       (error) => {
@@ -217,113 +213,113 @@ export default class GooglePlacesAutocomplete extends Component {
   }
 
   _onPress = (rowData) => {
+    if (rowData.isPredefinedPlace !== true && this.props.fetchDetails === true) {
+      if (rowData.isLoading === true) {
+        // already requesting
+        return;
+      }
 
-    try {
-      if (rowData.isPredefinedPlace !== true && this.props.fetchDetails === true) {
-        if (rowData.isLoading === true) {
-          // already requesting
-          return;
-        }
+      this._abortRequests();
 
-        this._abortRequests();
+      // display loader
+      this._enableRowLoader(rowData);
 
-        // display loader
-        this._enableRowLoader(rowData);
+      // fetch details
+      const request = new XMLHttpRequest();
+      this._requests.push(request);
+      request.timeout = this.props.timeout;
+      request.ontimeout = this.props.onTimeout;
+      request.onreadystatechange = () => {
+        if (request.readyState !== 4) return;
 
-        // fetch details
-        const request = new XMLHttpRequest();
-        this._requests.push(request);
-        request.timeout = this.props.timeout;
-        request.ontimeout = this.props.onTimeout;
-        request.onreadystatechange = () => {
-          if (request.readyState !== 4) return;
+        if (request.status === 200) {
+          var responseJSON;
+          try {
+            responseJSON = JSON.parse(request.responseText);
 
-          if (request.status === 200) {
-            const responseJSON = JSON.parse(request.responseText);
+          } catch (error) {
+            console.warn(
+              'google places autocomplete: request could not be completed or has been aborted' + error
+            );
+          }
 
-            if (responseJSON.status === 'OK') {
-              if (this._isMounted === true) {
-                const details = responseJSON.result;
-                this._disableRowLoaders();
-                this._onBlur();
-
-                this.setState({
-                  text: this._renderDescription(rowData),
-                });
-
-                delete rowData.isLoading;
-                this.props.onPress(rowData, details);
-              }
-            } else {
+          if (responseJSON && responseJSON.status === 'OK') {
+            if (this._isMounted === true) {
+              const details = responseJSON.result;
               this._disableRowLoaders();
+              this._onBlur();
 
-              if (this.props.autoFillOnNotFound) {
-                this.setState({
-                  text: this._renderDescription(rowData)
-                });
-                delete rowData.isLoading;
-              }
+              this.setState({
+                text: this._renderDescription(rowData),
+              });
 
-              if (!this.props.onNotFound) {
-                console.warn('google places autocomplete: ' + responseJSON.status);
-              } else {
-                this.props.onNotFound(responseJSON);
-              }
+              delete rowData.isLoading;
+              this.props.onPress(rowData, details);
             }
           } else {
             this._disableRowLoaders();
 
-            if (!this.props.onFail) {
-              console.warn(
-                'google places autocomplete: request could not be completed or has been aborted'
-              );
+            if (this.props.autoFillOnNotFound) {
+              this.setState({
+                text: this._renderDescription(rowData)
+              });
+              delete rowData.isLoading;
+            }
+
+            if (!this.props.onNotFound) {
+              console.warn('google places autocomplete: ' + responseJSON.status);
             } else {
-              this.props.onFail();
+              this.props.onNotFound(responseJSON);
             }
           }
-        };
+        } else {
+          this._disableRowLoaders();
 
-        request.open('GET', 'https://maps.googleapis.com/maps/api/place/details/json?' + Qs.stringify({
-          key: this.props.query.key,
-          placeid: rowData.place_id,
-          language: this.props.query.language,
-        }));
-
-        if (this.props.query.origin !== null) {
-          request.setRequestHeader('Referer', this.props.query.origin)
+          if (!this.props.onFail) {
+            console.warn(
+              'google places autocomplete: request could not be completed or has been aborted'
+            );
+          } else {
+            this.props.onFail();
+          }
         }
+      };
 
-        request.send();
-      } else if (rowData.isCurrentLocation === true) {
-        // display loader
-        this._enableRowLoader(rowData);
+      request.open('GET', 'https://maps.googleapis.com/maps/api/place/details/json?' + Qs.stringify({
+        key: this.props.query.key,
+        placeid: rowData.place_id,
+        language: this.props.query.language,
+      }));
 
-        this.setState({
-          text: this._renderDescription(rowData),
-        });
-
-        this.triggerBlur(); // hide keyboard but not the results
-        delete rowData.isLoading;
-        this.getCurrentLocation();
-
-      } else {
-        this.setState({
-          text: this._renderDescription(rowData),
-        });
-
-        this._onBlur();
-        delete rowData.isLoading;
-        let predefinedPlace = this._getPredefinedPlace(rowData);
-
-        // sending predefinedPlace as details for predefined places
-        this.props.onPress(predefinedPlace, predefinedPlace);
+      if (this.props.query.origin !== null) {
+        request.setRequestHeader('Referer', this.props.query.origin)
       }
-    } catch (error) {
-      console.warn(
-        'google places autocomplete: request could not be completed or has been aborted' + error
-      );
-    }
 
+      request.send();
+    } else if (rowData.isCurrentLocation === true) {
+      // display loader
+      this._enableRowLoader(rowData);
+
+      this.setState({
+        text: this._renderDescription(rowData),
+      });
+
+      this.triggerBlur(); // hide keyboard but not the results
+      delete rowData.isLoading;
+      this.getCurrentLocation();
+
+    } else {
+      this.setState({
+        text: this._renderDescription(rowData),
+      });
+
+      this._onBlur();
+      delete rowData.isLoading;
+      let predefinedPlace = this._getPredefinedPlace(rowData);
+
+      // sending predefinedPlace as details for predefined places
+      this.props.onPress(predefinedPlace, predefinedPlace);
+    }
   }
 
   _enableRowLoader = (rowData) => {
@@ -502,13 +498,7 @@ export default class GooglePlacesAutocomplete extends Component {
   }
 
   _onChangeText = (text) => {
-    try {
-      this._request(text);
-
-    } catch (error) {
-      console.warn('google places autocomplete: ' + error)
-    }
-
+    this._request(text);
     this.setState({
       text: text,
       listViewDisplayed: true,
