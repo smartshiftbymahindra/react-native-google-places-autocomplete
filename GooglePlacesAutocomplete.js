@@ -233,7 +233,7 @@ export default class GooglePlacesAutocomplete extends Component {
         if (request.readyState !== 4) return;
 
         if (request.status === 200) {
-          var responseJSON;
+          var responseJSON = null;
           try {
             responseJSON = JSON.parse(request.responseText);
 
