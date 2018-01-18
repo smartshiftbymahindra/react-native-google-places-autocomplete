@@ -233,9 +233,17 @@ export default class GooglePlacesAutocomplete extends Component {
         if (request.readyState !== 4) return;
 
         if (request.status === 200) {
-          const responseJSON = JSON.parse(request.responseText);
+            var responseJSON = null;
+          try {
+            responseJSON = JSON.parse(request.responseText);
 
-          if (responseJSON.status === 'OK') {
+          } catch (error) {
+            console.warn(
+              'google places autocomplete: request could not be completed or has been aborted' + error
+            );
+          }
+
+          if (responseJSON&&responseJSON.status === 'OK') {
             if (this._isMounted === true) {
               const details = responseJSON.result;
               this._disableRowLoaders();
