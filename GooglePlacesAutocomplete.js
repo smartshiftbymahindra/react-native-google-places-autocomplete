@@ -233,9 +233,16 @@ export default class GooglePlacesAutocomplete extends Component {
         if (request.readyState !== 4) return;
 
         if (request.status === 200) {
-          const responseJSON = JSON.parse(request.responseText);
+          var responseJSON = null;
+          try {
+            responseJSON = JSON.parse(request.responseText);
+          } catch (error) {
+            console.warn(
+              'google places autocomplete: request could not be completed or has been aborted' + error
+            );
+          }
 
-          if (responseJSON.status === 'OK') {
+          if (responseJSON&&responseJSON.status === 'OK') {
             if (this._isMounted === true) {
               const details = responseJSON.result;
               this._disableRowLoaders();
@@ -390,26 +397,28 @@ export default class GooglePlacesAutocomplete extends Component {
         }
 
         if (request.status === 200) {
-          const responseJSON = JSON.parse(request.responseText);
+          try {
+            const responseJSON = JSON.parse(request.responseText);
+            this._disableRowLoaders();
+            if (typeof responseJSON.results !== 'undefined') {
+              if (this._isMounted === true) {
+                var results = [];
+                if (this.props.nearbyPlacesAPI === 'GoogleReverseGeocoding') {
+                  results = this._filterResultsByTypes(responseJSON, this.props.filterReverseGeocodingByTypes);
+                } else {
+                  results = responseJSON.results;
+                }
 
-          this._disableRowLoaders();
-
-          if (typeof responseJSON.results !== 'undefined') {
-            if (this._isMounted === true) {
-              var results = [];
-              if (this.props.nearbyPlacesAPI === 'GoogleReverseGeocoding') {
-                results = this._filterResultsByTypes(responseJSON, this.props.filterReverseGeocodingByTypes);
-              } else {
-                results = responseJSON.results;
+                this.setState({
+                  dataSource: this.buildRowsFromResults(results),
+                });
               }
-
-              this.setState({
-                dataSource: this.buildRowsFromResults(results),
-              });
             }
-          }
-          if (typeof responseJSON.error_message !== 'undefined') {
-            console.warn('google places autocomplete: ' + responseJSON.error_message);
+            if (typeof responseJSON.error_message !== 'undefined') {
+              console.warn('google places autocomplete: ' + responseJSON.error_message);
+            }
+          } catch (error) {
+            console.warn("google places autocomplete: request could not be completed or has been aborted");
           }
         } else {
           // console.warn("google places autocomplete: request could not be completed or has been aborted");
@@ -459,17 +468,21 @@ export default class GooglePlacesAutocomplete extends Component {
         }
 
         if (request.status === 200) {
-          const responseJSON = JSON.parse(request.responseText);
-          if (typeof responseJSON.predictions !== 'undefined') {
-            if (this._isMounted === true) {
-              this._results = responseJSON.predictions;
-              this.setState({
-                dataSource: this.buildRowsFromResults(responseJSON.predictions),
-              });
+          try {
+            const responseJSON = JSON.parse(request.responseText);
+            if (typeof responseJSON.predictions !== 'undefined') {
+              if (this._isMounted === true) {
+                this._results = responseJSON.predictions;
+                this.setState({
+                  dataSource: this.buildRowsFromResults(responseJSON.predictions),
+                });
+              }
             }
-          }
-          if (typeof responseJSON.error_message !== 'undefined') {
-            console.warn('google places autocomplete: ' + responseJSON.error_message);
+            if (typeof responseJSON.error_message !== 'undefined') {
+              console.warn('google places autocomplete: ' + responseJSON.error_message);
+            }
+          } catch(error) {
+            console.warn("google places autocomplete: request could not be completed or has been aborted");
           }
         } else {
           // console.warn("google places autocomplete: request could not be completed or has been aborted");
