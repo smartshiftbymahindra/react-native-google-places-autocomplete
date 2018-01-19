@@ -397,9 +397,8 @@ export default class GooglePlacesAutocomplete extends Component {
         }
 
         if (request.status === 200) {
-          var responseJSON = null;
           try {
-            responseJSON = JSON.parse(request.responseText);
+            const responseJSON = JSON.parse(request.responseText);
             this._disableRowLoaders();
             if (typeof responseJSON.results !== 'undefined') {
               if (this._isMounted === true) {
